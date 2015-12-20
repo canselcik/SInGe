@@ -22,47 +22,56 @@ using std::cout;
 using std::endl;
 using std::cerr;
 
-void parse_args(int argc, char ** argv) {
-  if  (argc < 3) {
-    cout << "two arguments are needed: dir_files_to_add and dir_dict" << endl;
-    return;
-  }
-
-  vector <string> paths;
-  const char * dir_files = argv[1];
-  DIR *dirp = opendir(dir_files);
-  struct dirent *dp;
-  while ((dp = readdir(dirp)) != NULL) {
-    struct stat st;
-    string path = std::string(dir_files) + "/" + dp->d_name;
-    if (0 == stat(path.c_str(), &st)) {
-      if (S_ISREG(st.st_mode)) {
-        paths.push_back(path);			
-      }
-    }
-  }
-  
-  cerr << "building dictionary..." << endl;
-
-  Dictionary dictionary;
-  for (const auto& path : paths) {
-    std::ifstream file(path);
-    string content;
-    std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), std::back_inserter(content));
-    content += "#";
-    dictionary.AddDocument(content);
-  }
-
-  dictionary.BuildDict();
-  
-  const char * dir_dict = argv[2];
-  dictionary.OutputDictTo(string(dir_dict));
-
-  cout << "ready in " << ((double) clock() / CLOCKS_PER_SEC) << '\n';
-}
-
 int main(int argc, char ** argv) {
-  parse_args(argc, argv);
-  return 0;
+	if (argc < 6) {
+		cout << "./bin/pzip <contentPath> <outputDictPath> <maxDictSize> <minSubstLen> <minCountToSubst>" << endl;
+		return -1;
+	}
+
+	vector<string> paths;
+	const char* dir_files = argv[1];
+	const char* dir_dict = argv[2];
+	long lMaxDictSize = std::atol(argv[3]);
+	long lMinSubstLen = std::atol(argv[4]);
+	long lMinCountToSubst = std::atol(argv[5]);
+
+	struct dirent *dp;
+	DIR *dirp = opendir(dir_files);
+
+	size_t fileCount = 0;
+	cout << "Figuring out which files to read into memory..." << endl;
+	while ((dp = readdir(dirp)) != NULL) {
+		fileCount++;
+
+		string path = std::string(dir_files) + "/" + dp->d_name;
+		cout << "\t-> " << path << endl;
+
+		struct stat st;
+		if (stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+			paths.push_back(path);
+	}
+
+	cout << "Found" << fileCount << " files, reading them..." << endl;
+
+	Dictionary dictionary;
+	for (const auto& path : paths) {
+		std::ifstream file(path);
+		string content;
+
+		std::copy(std::istreambuf_iterator<char>(file),
+				  std::istreambuf_iterator<char>(),
+				  std::back_inserter(content));
+		file.close();
+		dictionary.AddDocument(content);
+	}
+
+	cout << "Done reading. Building dictionary..." << endl;
+	dictionary.BuildDict();
+
+	cout << "Writing the dictionary to disk..." << endl;
+	dictionary.OutputDictTo(string(dir_dict));
+
+	cout << "COMPLETED in " << ((double) clock() / CLOCKS_PER_SEC) << ' seconds!\n';
+	return 0;
 }
 

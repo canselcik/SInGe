@@ -57,7 +57,16 @@ Dictionary::Dictionary(size_t kMaxDict
 
 Dictionary::~Dictionary() {}
 
-void Dictionary::AddDocument(string& doc) {
+static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+string generateRandomSeparator() {
+	string output;
+	for (int i = 0; i < 16; ++i)
+		output.push_back(alphanum[rand() % (sizeof(alphanum) - 1)]);
+	return output;
+}
+
+void Dictionary::AddDocument(string doc) {
+  doc.append( generateRandomSeparator() );
   last_document_ += doc;
   automaton_all_.AddString(doc.data(), doc.size());
 }
